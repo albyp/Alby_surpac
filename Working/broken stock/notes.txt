@@ -1,0 +1,33 @@
+Gui to prompt
+
+Is Pit working directory selected?
+Working directory should be structured as follows:
+
+"
+Pit
+  /Current_Pit
+    currentpit_###.str/dtm
+  /Blasting
+    /RLs
+      RLs_all_solid.str/dtm
+  /Broken Stocks
+"
+
+### to be replaced with the pit identifier "GW, TW, ERL"
+RLs to be replaced with blast toe RL.
+
+Report to output RLs files with user provided date and RL inside "broken stock" folder
+
+Group geomatically with the solid (same solid as RLs_all_solid)
+
+THINGS TO WORK OUT
+- If you can have solids overlapping (else this will require lots of cleanup on blast reporting)
+- Block model report format that suits that outputs required (could have it set up to copy paste straight into excel)
+- CSV is probably going to be the best format file to use
+
+
+
+OUTPUT NOTES
+Volume of 435 shots using object report: 145,740
+Volume of 435 shots using block model report: 142,500
+2.3% variance
