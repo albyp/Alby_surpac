@@ -1,0 +1,7 @@
+Try add so it appends the new files to existing layer
+
+Point to surpac solid profiles folder rather than requiring the profile to be in same directory
+
+Delete un-necessary files onces complete
+- delete_me.str/dtm
+- $traceinput$contour
