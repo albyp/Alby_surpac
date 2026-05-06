@@ -96,9 +96,9 @@ set kimgName "$outputFile$kimgExt"
 
 # procedure for changing string numbers in string file
 proc change_string_in_file {inputStringFile str_no} {
-puts "Renumbering string in file $inputStringFile"
+  puts "Renumbering string in file $inputStringFile"
 
-set output "delete_me.str"
+  set output "delete_me.str"
 
   set in [open $inputStringFile r]
   set out [open $output w]
