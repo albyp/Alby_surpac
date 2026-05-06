@@ -44,7 +44,7 @@ Processing a blasted stock volume
 
 ### Currentpit Contours
 Launching the currentpit_contours macro opens the following GUI in Surpac
-![CPC](Source/Media/M_CPC.png)
+![CPC](source/media/M_CPC.png)
 
 As you can see, the macro allows you to select a "pit", this step essentially sets the working directory to that of the pit.
 The macro then has options to decide the contour intervals to generate (that of which can be changed within the macro.tcl to suit requirements).
