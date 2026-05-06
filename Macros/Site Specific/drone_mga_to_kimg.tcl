@@ -6,7 +6,9 @@
 #
 # Creation Date : Mon May 20 
 #
-# Author        : Alby Palmer (Land Surveys)
+# Author        : Alby Palmer
+#
+# Site          : Koolan Island
 #
 # Description   : Convert point cloud to MGA and KIMG2 coordinate system
 #                 Imports point cloud, saves MGA (str/dtm), converts to KIMG2, 
