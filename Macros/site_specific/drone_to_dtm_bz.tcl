@@ -11,8 +11,9 @@
 # Site          : Buzzard
 #
 # Description   : Renames CSV file to XYZ, imports point cloud, creates DTM, 
-#                 renumbers to input string, cleans layer (minimum seperation), 
-#                 applies geoid seperation shift, appends surveyor details, saves (str/dtm)
+#                 appends surveyor details, renumbers to input string, 
+#                 cleans layer (minimum seperation), applies block shift,
+#		  saves (str/dtm), deletes log and temp files
 #
 ######################################################################
 
@@ -24,23 +25,19 @@ set str_no 33
 # form
 set myForm {
   GuidoForm myForm {
-    -label "XYZ point cloud to DTM"
+    -label "CSV point cloud to DTM"
     -default_buttons
     -defaults_key sectionsfile
     -layout BoxLayout Y_AXIS
-    -width 50
-    -height 16
+    -width 45
+    -height 14
 
     GuidoPanel panel_left {
       -layout BoxLayout Y_AXIS
 
       GuidoLabel bold_label {
-        -label "<html><h1>Convert XYZ point cloud to DTM</h1><br>
+        -label "<html><h1>Convert CSV point cloud to DTM</h1><br>
         <font color=red>Ensure work directory set before proceeding</html>"
-      }
-
-      GuidoLabel label {
-        -label "Output filename should be in format \"YYMMDD_NAME\""
       }
 
       GuidoFiller spacer {
@@ -62,7 +59,7 @@ set myForm {
         }
 
         GuidoCheckBox applyBlockShift {
-          -label "Apply block shift<br>+100m to Z values"
+          -label "<html>Apply block shift<br>+100m to Z values</html>"
           -caption "Yes"
           -selected_value "yes"
           -unselected_value "no"
@@ -81,6 +78,14 @@ set myForm {
           -label "D1 Info (Surveyor, date, etc.)"
           -display_length 30
           -format none
+        }
+
+	GuidoCheckBox delTemp {
+          -label "Delete temporary files"
+          -caption "Yes"
+          -default "y"
+          -selected_value "y"
+          -unselected_value "n"
         }
       }
     }
@@ -157,7 +162,7 @@ proc change_string_in_file {inputStringFile str_no} {
 
 # main functions
 if {[file exists $inputFile]} {
-    file copy $inputFile.csv $inputFile.xyz
+    file copy $inputFile $outputFile.xyz
 }
 
 puts "Copied CSV to XYZ"
@@ -276,6 +281,30 @@ set status [ SclFunction "FILE SAVE" {
   }
 }]
 
+# Clean up files
+if {$delTemp == "y"} {  
+  set status [ SclFunction "EXECUTE OS COMMAND" {
+    frm00462={
+      {
+        os_cmd="del *.log"
+      }
+    }
+  }]
+  
+  set status [ SclFunction "EXECUTE OS COMMAND" {
+    frm00462={
+      {
+        os_cmd="del *.dspc"
+      }
+    }
+  }]
+  
+  # Delete "_dscache" folder
+  set list [split "$inputFile" .]
+  lappend delFolder [lindex $list 0]
+  set dsc _dscache
+  file delete -force "$delFolder$dsc"
+}
 
 puts "Loaded $outputFile.dtm"
 puts "Macro finished"
