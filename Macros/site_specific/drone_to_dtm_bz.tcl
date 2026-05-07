@@ -2,9 +2,9 @@
 #
 # Macro Name    : drone_to_dtm_bz.tcl
 #
-# Version       : Surpac 7.6.2 (x64)
+# Version       : Surpac 7.2 (x64)
 #
-# Creation Date : 6 May 2026 
+# Creation Date : Fri May 8 2026 
 #
 # Author        : Alby Palmer
 #
@@ -61,18 +61,26 @@ set myForm {
           -display_length 30
         }
 
-        GuidoField outputFile {
-          -label "Output filename"
-          -display_length 30
-          -format none
-          -null false
+        GuidoCheckBox applyBlockShift {
+          -label "Apply block shift<br>+100m to Z values"
+          -caption "Yes"
+          -selected_value "yes"
+          -unselected_value "no"
+          -default "yes"
         }
 
+        # Output assumed to be same as input but with .str/dtm extension, so no need to specify in form
+        # GuidoField outputFile {
+        #   -label "Output filename"
+        #   -display_length 30
+        #   -format none
+        #   -null false
+        # }
+
         GuidoField surveyInfo {
-          -label "D1 Info (dronedata_A.Surveyor_YYMMDD)"
+          -label "D1 Info (Surveyor, date, etc.)"
           -display_length 30
           -format none
-          -null false
         }
       }
     }
@@ -87,6 +95,9 @@ if {$_status == "cancel"} then {
   puts "Macro cancelled"
   return
 }
+
+# assume output file is same as input but with .str/dtm extension
+set outputFile [file rootname $inputFile]
 
 
 # procedure for changing string numbers in string file
@@ -156,7 +167,7 @@ set status [ SclFunction "CLOUD FILE MESH" {
     {
       inputFile="$inputFile"
       mesherMode="3DDeviation"
-      deviation=".05"
+      deviation=".1"
       outputFile="$outputFile"
       densityReductionMethod="subsampling"
     }
@@ -170,25 +181,63 @@ set status [ SclFunction "RECALL ANY FILE" {
   mode="openInNewLayer"
 }]
 
-set status [ SclFunction "GRAPHICS LAYER MATHS" {
-  frm00702={
+set status [ SclFunction "CLEAN LAYER" {
+  frm00605={
     {
-      strrange="Y"
-      main=table { str_range constraint field expr } {
-        { "" "" "d1" "\"$surveyInfo\"" }
-        { "" "" "" "" }
-        { "" "" "" "" }
-        { "" "" "" "" }
-        { "" "" "" "" }
-        { "" "" "" "" }
-        { "" "" "" "" }
-        { "" "" "" "" }
-        { "" "" "" "" }
-        { "" "" "" "" }
-      }
+      operation="Duplicate Point"
+      dup_pnts_action="remove"
+      dup_pnts_target="layer"
+      dup_pnts_dist_min="0"
+      dup_pnts_dist="0.06"
+      dimension="2D"
+      plane="plan"
     }
   }
 }]
+
+if {$surveyInfo ne ""} {
+  set status [ SclFunction "GRAPHICS LAYER MATHS" {
+    frm00702={
+      {
+        strrange="Y"
+        main=table { str_range constraint field expr } {
+          { "" "" "d1" "\"$surveyInfo\"" }
+          { "" "" "" "" }
+          { "" "" "" "" }
+          { "" "" "" "" }
+          { "" "" "" "" }
+          { "" "" "" "" }
+          { "" "" "" "" }
+          { "" "" "" "" }
+          { "" "" "" "" }
+          { "" "" "" "" }
+        }
+      }
+    }
+  }]
+}
+
+if {$applyBlockShift eq "yes"} {
+  set status [ SclFunction "GRAPHICS LAYER MATHS" {
+    frm00702={
+      {
+        strrange="Y"
+        main=table { str_range constraint field expr } {
+          { "" "" "z" "z+100" }
+          { "" "" "" "" }
+          { "" "" "" "" }
+          { "" "" "" "" }
+          { "" "" "" "" }
+          { "" "" "" "" }
+          { "" "" "" "" }
+          { "" "" "" "" }
+          { "" "" "" "" }
+          { "" "" "" "" }
+        }
+      }
+    }
+  }]
+}
 
 set status [ SclFunction "GRAPHICS CREATE DTM" {
   frm01311={
