@@ -1,0 +1,25 @@
+# Shortcuts
+#
+# Add this file to Surpac alias files
+# Customise | Default Preferences | Alias files
+#
+
+# Basic editing
+"B"     "GRAPHICAL SEGMENT BREAK"
+"C"     "DIGITISER DIGITISE"
+"D"     "POINT DELETE"
+"DD"    "SEGMENT DELETE"
+"DS"    "STRING DELETE"
+"E"     "ERASE TEMPORARY MARKERS"
+"ES"    "EXPAND SEGMENT"
+"J"     "GRAPHICAL SEGMENT JOIN"
+"JJ"    "SEGMENT CLOSE"
+"M"     "POINT MOVE"
+"MM"    "SEGMENT MOVE"
+"N"     "DIGITISE NEW STRING"
+"SR"    "SEGMENT REVERSE"
+
+# Math
+"ML"    "GRAPHICS LAYER MATHS"
+"MM"    "GRAPHICS SEG MATHS"
+"MS"    "GRAPHICS STR MATHS"
