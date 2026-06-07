@@ -58,3 +58,7 @@ The general tasks of the macro include:
 
 - user options to import "point cloud", "dtm" or "dxf mesh" files
 - user defined export name and location
+
+## Resources
+
+- [TCL Commands](https://www.tcl-lang.org/man/tcl8.4/TclCmd/)
