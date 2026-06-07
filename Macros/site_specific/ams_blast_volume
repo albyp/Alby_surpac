@@ -1,0 +1,309 @@
+######################################################################
+#
+# Macro Name    : ams_blast_volume.tcl
+#
+# Version       : Surpac 7.2 (x64)
+#
+# Creation Date : Sat Jun 6 2026
+#
+# Author        : Alby Palmer
+#
+# Site          : Buzzard
+#
+# Description   : Generate blast solid and calculate volume from survey pickup
+#                 Assumes boundary string and blast holes in same layer
+#
+######################################################################
+
+puts "Macro running"
+
+# Define hole strings and boundary string numbers - update as required for site
+array set holeStrings {
+    presplit 103
+    lostGet 105
+    bviPre 106
+    bviPost 107
+    production 108
+}
+
+set boundaryString 109
+
+set strings {}
+foreach {key val} [array get holeStrings] {
+	lappend strings $val
+}
+
+set strings [join $strings ";"]
+
+set form [subst {
+    GuidoForm form {
+        -label "Process blast solid and volume"
+        -default_buttons
+        -defaults_key sectionsfile
+        -layout BoxLayout Y_AXIS
+        -width 45
+        -height 15
+
+        GuidoPanel panel_left {
+            -layout BoxLayout Y_AXIS
+
+            GuidoLabel label1 {
+                -label "Select blast boundary string"
+            }
+
+            GuidoPanel panel_1 {
+                -label "Input"
+                -layout CentreLineLayout
+                -border etched true
+
+                GuidoFileBrowserField pickupFile {
+                    -label "Select blast pickup file"
+                    -format none
+                    -translate none
+                    -file_mask "*.str"
+                    -display_length 20
+		            -extension false
+                }
+
+                GuidoField floorElevation {
+                    -label "Floor elevation"
+                    -format none
+                    -null false
+                }
+
+                GuidoField boundaryStringField {
+                    -label "Boundary string number"
+                    -default "$boundaryString"
+                    -null false
+                }
+
+                GuidoField holeStringsField {
+                    -label "Hole string numbers (range or semicolon separated)"
+                    -default "$strings"
+		            -width 20
+                }
+
+                GuidoCheckBox delTemp {
+                    -label "Delete temporary files"
+                    -caption "Yes"
+                    -default "y"
+                    -selected_value "y"
+                    -unselected_value "n"
+                }
+
+            }
+            
+            GuidoLabel label2 {
+                -label "<html><font color=\"red\">Note: Hole strings must be in same layer as boundary string<br><br>Does not factor sump/trench/batter angle or ramp design.</html>"
+            }
+        }
+    }
+}]
+
+SclCreateGuidoForm mainForm $form {}
+
+$mainForm SclRun {}
+if {$_status == "cancel"} {
+    puts "Macro cancelled by user"
+    return
+}
+
+set sfx    _vol
+set output $pickupFile$sfx
+
+# Create DTM from pickup STR
+set status [ SclFunction "CREATE DTM" {
+  frm00126={
+    {
+      location="$pickupFile"
+      object_num="1"
+      obj_name=""
+      inputExt="str"
+      output_fname="$output"
+      plane="plan"
+      check_distance="0.0050"
+      break="Y"
+      anyspots="Y"
+      spotrng="$holeStringsField"
+      brktest="N"
+      interpolate_new_points="N"
+      apply_boundary="Y"
+      bdyloc="$pickupFile"
+      bdystr="$boundaryStringField"
+      inout="I"
+    }
+  }
+}]
+
+set status [ SclFunction "RECALL ANY FILE" {
+  file="$output.dtm"
+  mode="openInNewLayer"
+}]
+
+set status [ SclFunction "GRAPHICS LAYER MATHS" {
+  frm00702={
+    {
+      strrange="Y"
+      main=table { str_range constraint field expr } {
+        { "" "" "z" "$floorElevation" }
+        { "" "" "" "" }
+        { "" "" "" "" }
+        { "" "" "" "" }
+        { "" "" "" "" }
+        { "" "" "" "" }
+        { "" "" "" "" }
+        { "" "" "" "" }
+        { "" "" "" "" }
+        { "" "" "" "" }
+      }
+    }
+  }
+}]
+
+set status [ SclFunction "RECALL ANY FILE" {
+  file="$output.dtm"
+  mode="appendToCurrentLayer"
+}]
+
+set status [ SclFunction "SECTION" {} ]
+
+set status [ SclFunction "EDGES ON" {} ]
+
+set top [SclSelectPoint pnt "Select top DTM" layer str_no seg_no pnt_no x1 y1 z1 desc]
+
+set bot [SclSelectPoint pnt "Select bottom DTM" layer str_no seg_no pnt_no x2 y2 z2 desc]
+
+set status [ SclFunction "TRIANGULATE AUTOMATIC" {
+  frm00459={
+    {
+      iobj="1"
+      itrisol="1"
+    }
+  }
+  select_point=table { winx winy objectx objecty objectz snap_projection } {
+    { "0.500" "0.000" "$x1" "$y1" "$z1" "off" }
+    { "0.500" "0.000" "$x2" "$y2" "$z2" "off" }
+  }
+}]
+
+set status [ SclFunction "PLAN" {} ]
+
+set status [ SclFunction "ERASE OBJECTS" {
+  frm00089={
+    {
+      range1="1"
+      range2="1"
+      range3=""
+      textalignment="<"
+      position="All points"
+      layer_name="$output.dtm"
+      display_object_number=""
+      display_trisolation_number=""
+    }
+  }
+}]
+
+set status [ SclFunction "EDGES OFF" {} ]
+
+set point [SclSelectPoint pnt "Select DTM" layer str_no seg_no pnt_no x y z desc]
+
+set status [ SclFunction "TRISOLATION RENUMBER" {
+  select_triangle={
+    {
+      winx="0.000"
+      winy="0.000"
+      objectx="$x"
+      objecty="$y"
+      objectz="$z"
+    }
+  }
+  frm00453={
+    {
+      newobj="1"
+      newtrisol="1"
+    }
+  }
+}]
+
+set status [ SclFunction "DRAW OBJECTS" {
+  frm00089={
+    {
+      range1=""
+      range2=""
+      range3=""
+      ifld_num="d1"
+      textalignment="<"
+      layer_name="$output.dtm"
+      display_object_number="N"
+    }
+  }
+}]
+
+set status [ SclFunction "NEIGHBOURS AND VALIDATE OBJECT" {
+  frmvalidateObject={
+    {
+      report_file=""
+      obj_range=""
+      trisol_range=""
+      fix_problems="N"
+      report_intersection_duplication="N"
+      set_as_solid="Y"
+      deleteSmallTrisol="N"
+      deleteSmallTriangles="N"
+      displayTriangleDir="N"
+      colours=table { colour_label colour_field } {
+        { "Holes" "GREEN" }
+        { "Intersecting triangles" "CYAN" }
+        { "Invalid edges only" "ORANGE" }
+        { "Open edges" "MAGENTA" }
+        { "Reversed triangles" "RED" }
+      }
+    }
+  }
+}]
+
+set status [ SclFunction "FILE SAVE" {
+  frmsaveFileAs={
+    {
+      output_file="$output"
+      output_type="Surpac DTM Files"
+      outputExt=".dtm"
+      Surpac={
+        range=""
+        Purpose=""
+        FileFormat="text"
+        ForceCompatibility="true"
+        ForceValidation="true"
+      }
+      saveStyle="N"
+    }
+  }
+  frmSaveMultipleFiles={
+    {
+      _action="apply"
+    }
+  }
+}]
+
+set status [ SclFunction "OBJECT REPORT" {
+  frm00466={
+    {
+      reploc="$output..not"
+      repid=""
+      report_format=".not"
+      checkoverlaps="N"
+      report_type="T"
+      decimals="0"
+    }
+  }
+}]
+
+if {$delTemp == "y"} {  
+  set status [ SclFunction "EXECUTE OS COMMAND" {
+    frm00462={
+      {
+        os_cmd="del *.log"
+      }
+    }
+  }]
+}
