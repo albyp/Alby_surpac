@@ -1,4 +1,3 @@
-
 <!-- Include screenshots for editing alias and translation files within Surpac for ease of use for new users. -->
 
 # Alby Surpac
@@ -10,7 +9,7 @@ In brief, this is a repo for Alby's Surpac files. It contains items from styles 
 - Includes macros, styles, profiles and templates to be used within Surpac
 - Up to date files for use with latest versions of Surpac
 
->**Note:** Majority of macros are designed for with absolute references for logicals and files
+> **Note:** Majority of macros are designed for with absolute references for logicals and files
 
 <!--
 Create a wiki website that can be accessed with information about Surpac and the macros that have been created.
@@ -26,6 +25,65 @@ Could potentially use the inbuilt GitHub Wiki for this
 
 - Surpac default files should only be changed as an advanced user
 - Modifying default files or directing towards new files is likely to cause issues if your administrator / supervisor has set up Surpac specifically for your working environment.
+
+## Shortcuts
+
+### User shortcuts
+
+| Shortcut | Command                           |
+| -------- | --------------------------------- |
+| cdd      | MACRO:MACROS:/alby/cd_survey.tcl  |
+| cdw      | MACRO:MACROS:/alby/cd_working.tcl |
+
+### Macros
+
+| Shortcut | Command                                   |
+| -------- | ----------------------------------------- |
+| PC       | MACRO:MACROS:\\plot_d1_centroid.tcl       |
+| PCS      | MACRO:MACROS:\\plot_d1_segno_centroid.tcl |
+
+### Basic Editing
+
+| Shortcut | Command                  |
+| -------- | ------------------------ |
+| B        | GRAPHICAL SEGMENT BREAK  |
+| C        | DIGITISER DIGITISE       |
+| CR       | CIRCLE                   |
+| D        | POINT DELETE             |
+| DD       | SEGMENT DELETE           |
+| DS       | STRING DELETE            |
+| E        | ERASE TEMPORARY MARKERS  |
+| EE       | EXPAND SEGMENT           |
+| ES       | SEGMENT EDIT DESC        |
+| J        | GRAPHICAL SEGMENT JOIN   |
+| JJ       | SEGMENT CLOSE            |
+| M        | POINT MOVE               |
+| MM       | SEGMENT MOVE             |
+| N        | DIGITISE NEW STRING      |
+| PE       | POINT EDIT               |
+| R        | SEGMENT REVERSE          |
+| RR       | SEGMENT RENUMBER         |
+| SR       | STRING RENUMBER          |
+| SRR      | STRING RENUMBER RANGE    |
+| T        | DIGITISER FOLLOW SEGMENT |
+
+### Surface and solid tools
+
+| Shortcut | Command                   |
+| -------- | ------------------------- |
+| CA       | TRISOLATION 3DM/DTM ABOVE |
+| CB       | TRISOLATION 3DM/DTM BELOW |
+| DV       | DTM VOLUMES               |
+| DCFV     | DTM CUT AND FILL VOLUMES  |
+| SFV      | VALIDATE AS DTM           |
+
+### Math
+
+| Shortcut | Command              |
+| -------- | -------------------- |
+| ML       | GRAPHICS LAYER MATHS |
+| MM       | GRAPHICS SEG MATHS   |
+| MS       | GRAPHICS STR MATHS   |
 
 ## Macros
 
@@ -52,7 +110,9 @@ Also allowing the generation of a DTM (Digital Terrain Model) for enhanced visua
 ### Drone to DTM
 
 Launching the drone to dtm macro opens the following GUI in Surpac
+
 <!-- Insert screenshot of GUI -->
+
 This macro is ready to use within any environment as it has no absolute references.
 The general tasks of the macro include:
 
