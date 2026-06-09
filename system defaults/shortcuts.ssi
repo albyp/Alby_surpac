@@ -5,11 +5,13 @@
 #
 
 # User shortcuts
-"cdd"	"MACRO:MACROS:/alby/cd_survey.tcl"
-"cdw"	"MACRO:MACROS:/alby/cd_working.tcl"
-"ii"    "MACRO:MACROS:/import_pickup.tcl"
+"CDD"	"MACRO:MACROS:/alby/cd_survey.tcl"
+"CDW"	"MACRO:MACROS:/alby/cd_working.tcl"
+"CDS"	"MACRO:MACROS:/alby/cd_working_server.tcl"
+"II"	"MACRO:MACROS:\\alby/import_pickup.tcl"
 
 # Macros
+"BV"	"MACRO:MACROS:\\ams_blast_volume.tcl"
 "PC"	"MACRO:MACROS:\\plot_d1_centroid.tcl"
 "PCS"	"MACRO:MACROS:\\plot_d1_segno_centroid.tcl"
 
