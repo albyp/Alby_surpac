@@ -15,6 +15,10 @@
 #
 ######################################################################
 
+# Notes / improvements
+# hide other layers (if STR file is already loaded, we want that hidden)
+# check if boundary string exists
+
 puts "Macro running"
 
 # Define hole strings and boundary string numbers - update as required for site
@@ -35,69 +39,109 @@ foreach {key val} [array get holeStrings] {
 
 set strings [join $strings ";"]
 
-set form [subst {
-    GuidoForm form {
-        -label "Process blast solid and volume"
-        -default_buttons
-        -defaults_key sectionsfile
-        -layout BoxLayout Y_AXIS
-        -width 45
-        -height 15
+set pit ""
+set rl ""
+set shot ""
 
-        GuidoPanel panel_left {
-            -layout BoxLayout Y_AXIS
+set strFiles [glob -nocomplain {*.str}]
 
-            GuidoLabel label1 {
-                -label "Select blast boundary string"
-            }
+if {[llength $strFiles] == 1} {
+    puts "Found 1 string file."
 
-            GuidoPanel panel_1 {
-                -label "Input"
-                -layout CentreLineLayout
-                -border etched true
-
-                GuidoFileBrowserField pickupFile {
-                    -label "Select blast pickup file"
-                    -format none
-                    -translate none
-                    -file_mask "*.str"
-                    -display_length 20
-		            -extension false
-                }
-
-                GuidoField floorElevation {
-                    -label "Floor elevation"
-                    -format none
-                    -null false
-                }
-
-                GuidoField boundaryStringField {
-                    -label "Boundary string number"
-                    -default "$boundaryString"
-                    -null false
-                }
-
-                GuidoField holeStringsField {
-                    -label "Hole string numbers (range or semicolon separated)"
-                    -default "$strings"
-		            -width 20
-                }
-
-                GuidoCheckBox delTemp {
-                    -label "Delete temporary files"
-                    -caption "Yes"
-                    -default "y"
-                    -selected_value "y"
-                    -unselected_value "n"
-                }
-
-            }
-            
-            GuidoLabel label2 {
-                -label "<html><font color=\"red\">Note: Hole strings must be in same layer as boundary string<br><br>Does not factor sump/trench/batter angle or ramp design.</html>"
-            }
-        }
+    set cleanName [file rootname [lindex $strFiles 0]]
+    set details [split $cleanName _]
+    
+    if {[llength $details] == 3} {
+        lassign $details pit rl shot
+        
+        puts [format "Variables set -> Pit: %s, RL: %s, Shot: %s" $pit $rl $shot]
+    } else {
+        puts "Warning: File does not have exactly 3 parts."
     }
+}
+
+set form [subst {
+  GuidoForm form {
+    -label "Process blast solid and volume"
+    -default_buttons
+    -defaults_key sectionsfile
+    -layout BoxLayout Y_AXIS
+    -width 45
+    -height 17
+
+    GuidoPanel panel_left {
+      -layout BoxLayout Y_AXIS
+
+      GuidoLabel label1 {
+        -label "Select blast boundary string"
+      }
+
+      GuidoPanel panel_1 {
+        -label "Survey pickup"
+        -layout CentreLineLayout
+        -border etched true
+
+        GuidoFileBrowserField pickupFile {
+          -label "Select blast pickup file"
+          -format none
+          -translate none
+          -default "[lindex $strFiles 0]"
+          -file_mask "*.str"
+          -display_length 20
+          -extension false
+        }
+
+        GuidoField floorElevation {
+          -label "Floor elevation"
+          -format none
+          -null false
+          -default "$rl"
+        }
+
+        GuidoField boundaryStringField {
+          -label "Boundary string number"
+          -default "$boundaryString"
+          -null false
+        }
+
+        GuidoField holeStringsField {
+          -label "Hole string numbers (range or semicolon separated)"
+          -default "$strings"
+          -width 20
+        }
+      }
+
+      GuidoPanel panel_2 {
+        -label "<html>Design input<br><font color='red'>Input design file <b>ONLY</b> for wall/ramp clipping</html>"
+        -layout CentreLineLayout
+        -border etched true
+
+        GuidoFileBrowserField designFile {
+          -label "Select design file"
+          -file_mask "*.dtm"
+          -display_length 20
+        }
+      }
+
+      GuidoPanel panel_3 {
+        -label "Settings"
+        -layout CentreLineLayout
+        -border etched true
+
+        GuidoCheckBox delTemp {
+          -label "Delete temporary files"
+          -caption "Yes"
+          -selected_value "y"
+          -unselected_value "n"
+          -default "y"
+        }
+      }
+      
+      GuidoLabel label2 {
+        -label "<html><font color='red'>Note: Hole strings must be in same layer as boundary string</font color><br><br>If wall/ramp shot, input design file, otherwise leave blank.</html>"
+      }
+    }
+  }
 }]
 
 SclCreateGuidoForm mainForm $form {}
@@ -284,6 +328,39 @@ set status [ SclFunction "FILE SAVE" {
     }
   }
 }]
+
+if [info exists designFile] {
+  set status [ SclFunction "TRISOLATION FILE 3DM/DTM ABOVE" {
+    frm00714={
+      {
+        location1="$output.dtm"
+        id1=""
+        object1=""
+        trisol1=""
+        retain_other_trisolations="N"
+        location2="$designFile"
+        id2="31032026"
+        object2="1"
+        trisol2="1"
+        result_location="$output.dtm"
+        result_id=""
+        use_first_object_id="N"
+        result_object="1"
+        contact_string="0"
+      }
+    }
+    frm00121={
+      {
+        _action=""
+      }
+    }
+  }]
+
+  set status [ SclFunction "RECALL ANY FILE" {
+    file="$output.dtm"
+    mode="none"
+  }]
+}
 
 set status [ SclFunction "OBJECT REPORT" {
   frm00466={
