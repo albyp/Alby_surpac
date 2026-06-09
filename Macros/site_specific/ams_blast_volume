@@ -4,7 +4,7 @@
 #
 # Version       : Surpac 7.2 (x64)
 #
-# Creation Date : Sat Jun 6 2026
+# Creation Date : Sat Jun 9 2026
 #
 # Author        : Alby Palmer
 #
@@ -31,6 +31,8 @@ array set holeStrings {
 }
 
 set boundaryString 109
+
+set allshotDescString 20
 
 set strings {}
 foreach {key val} [array get holeStrings] {
@@ -67,14 +69,10 @@ set form [subst {
     -defaults_key sectionsfile
     -layout BoxLayout Y_AXIS
     -width 45
-    -height 17
+    -height 18
 
     GuidoPanel panel_left {
       -layout BoxLayout Y_AXIS
-
-      GuidoLabel label1 {
-        -label "Select blast boundary string"
-      }
 
       GuidoPanel panel_1 {
         -label "Survey pickup"
@@ -91,7 +89,7 @@ set form [subst {
           -extension false
         }
 
-        GuidoField floorElevation {
+        GuidoField benchElevation {
           -label "Floor elevation"
           -format none
           -null false
@@ -128,6 +126,14 @@ set form [subst {
         -layout CentreLineLayout
         -border etched true
 
+        GuidoCheckBox updateAllshot {
+          -label "Update Survey Allshot strings/dxf"
+          -caption "Yes"
+          -selected_value "y"
+          -unselected_value "n"
+          -default "y"
+        }
+
         GuidoCheckBox delTemp {
           -label "Delete temporary files"
           -caption "Yes"
@@ -138,7 +144,9 @@ set form [subst {
       }
       
       GuidoLabel label2 {
-        -label "<html><font color='red'>Note: Hole strings must be in same layer as boundary string</font color><br><br>If wall/ramp shot, input design file, otherwise leave blank.</html>"
+        -label "<html><font color='red'>Note: Hole strings must be in same layer as boundary string</font color><br><br>
+        If wall/ramp shot, input design file, otherwise leave blank.<br>
+        Update Survey Allshot - updates the ###_allshots* files</html>"
       }
     }
   }
@@ -189,7 +197,7 @@ set status [ SclFunction "GRAPHICS LAYER MATHS" {
     {
       strrange="Y"
       main=table { str_range constraint field expr } {
-        { "" "" "z" "$floorElevation" }
+        { "" "" "z" "$benchElevation" }
         { "" "" "" "" }
         { "" "" "" "" }
         { "" "" "" "" }
@@ -375,6 +383,147 @@ set status [ SclFunction "OBJECT REPORT" {
   }
 }]
 
+if {$updateAllshot == "y"} {
+  # get folder path, split to relativePath used in bench directory (###rl) to load allshot layers
+  set path [pwd]
+  # regexp 3 digits followed by "rl" or "RL"
+  if {[regexp -indices {\d{3}[rRlL]{2}} $path match_range]} {
+    set start [lindex $match_range 0]
+    set end [lindex $match_range 1]
+    set matchFolder [string range $path $start $end]
+
+    # Relative path
+    set remaining [string range $path [expr {$end + 1}] end]
+    set folderCount [llength [file split $remaining]]
+
+    if {$folderCount > 0} {
+        set dots [string repeat "../" $folderCount]
+        set relativePath "${dots}${matchFolder}/"
+      } else {
+        set relativePath "./${matchFolder}/"
+      }
+    
+    puts "Relative path: $relativePath"
+  }
+
+  set systemTime [clock seconds]
+
+  set status [ SclFunction "RECALL ANY FILE" {
+    file="$pickupFile.str"
+    mode="openInNewLayer"
+  }]
+
+  # create point with shot details
+  SclDigitise "Digitise point for Shot ID" xvar yvar zvar
+  SclGetActiveViewport ViewportHandle
+  $ViewportHandle SclGetActiveLayer SwaHandle
+  $SwaHandle SclCreateString stringhandle $allshotDescString
+  $stringhandle SclCreateSegment segmenthandle 0
+  $segmenthandle SclCreatePoint pointhandle 0
+  $pointhandle SclSetValueByName x $xvar
+  $pointhandle SclSetValueByName y $yvar
+  $pointhandle SclSetValueByName z $zvar
+  $pointhandle SclSetValueByName d1 "$pickupFile"
+  $pointhandle SclSetValueByName d2 "[clock format $systemTime -format %D]"
+  $pointhandle SclSetValueByName d2 "[clock format $systemTime -format %D]"
+
+  set status [ SclFunction "RECALL ANY FILE" {
+    file="$relativePath${benchElevation}_allshots_survey.str"
+    mode="appendToCurrentLayer"
+  }]
+
+  set status [ SclFunction "FILE SAVE" {
+    frmsaveFileAs={
+      {
+        output_file="$relativePath${benchElevation}_allshots_survey"
+        output_type="Surpac String Files"
+        outputExt=".str"
+        Surpac={
+          range=""
+          Purpose=""
+          FileFormat="text"
+          ForceValidation="true"
+          ForceCompatibility="true"
+        }
+        saveStyle="N"
+      }
+    }
+    frm00121={
+      {
+        _action=""
+      }
+    }
+  }]
+
+  # undo command to remove the recalled layer (revert back to pickup file)
+  set status [ SclFunction "UNDO" {} ]
+
+  set status [ SclFunction "RECALL ANY FILE" {
+    file="$relativePath${benchElevation}_allshots.str"
+    mode="appendToCurrentLayer"
+  }]
+
+  set status [ SclFunction "STRING DELETE RANGE" {
+    frm00066={
+      {
+        strange="$holeStringsField"
+      }
+    }
+  }]
+
+  set status [ SclFunction "FILE SAVE" {
+    frmsaveFileAs={
+      {
+        output_file="$relativePath${benchElevation}_allshots"
+        output_type="Surpac String Files"
+        outputExt=".str"
+        Surpac={
+          range=""
+          Purpose=""
+          FileFormat="text"
+          ForceValidation="true"
+          ForceCompatibility="true"
+        }
+        saveStyle="N"
+      }
+    }
+    frm00121={
+      {
+        _action=""
+      }
+    }
+  }]
+
+  set status [ SclFunction "FILE SAVE" {
+    frmsaveFileAs={
+      {
+        output_file="$relativePath${benchElevation}_allshots"
+        output_type="Autocad DXF / DWG Files"
+        outputExt=".dxf"
+        AutoCAD={
+          version="Autocad 24 (2010)"
+        }
+      }
+    }
+    frm00121={
+      {
+        _action=""
+      }
+    }
+  }]
+
+  puts "Updated allshot layers"
+}
+
+# Log the volume
+set f [open "$output.not" r]
+set content [read $f]
+close $f
+set trimmed [string trim $content]
+set contentList [split $trimmed " "]
+set lastElement [lindex $contentList end]
+puts "${pickupFile} - Volume: ${lastElement}"
+
 if {$delTemp == "y"} {  
   set status [ SclFunction "EXECUTE OS COMMAND" {
     frm00462={
@@ -384,3 +533,5 @@ if {$delTemp == "y"} {
     }
   }]
 }
+
+puts "Macro finished"
