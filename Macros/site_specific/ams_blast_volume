@@ -4,7 +4,7 @@
 #
 # Version       : Surpac 7.2 (x64)
 #
-# Creation Date : Tue Jun 9 2026
+# Creation Date : Mon Jun 29 2026
 #
 # Author        : Alby Palmer
 #
@@ -110,7 +110,7 @@ set form [subst {
       }
 
       GuidoPanel panel_2 {
-        -label "<html>Design input<br><font color='red'>Input design file <b>ONLY</b> for wall/ramp clipping</html>"
+        -label "Design input"
         -layout CentreLineLayout
         -border etched true
 
@@ -118,6 +118,10 @@ set form [subst {
           -label "Select design file"
           -file_mask "*.dtm"
           -display_length 20
+        }
+
+        GuidoLabel label1 {
+          -label "<html><font color='red'>Input design file <b>ONLY</b> for wall/ramp clipping<br></html>"
         }
       }
 
@@ -143,7 +147,7 @@ set form [subst {
         }
       }
       
-      GuidoLabel label2 {
+      GuidoLabel label3 {
         -label "<html><font color='red'>Note: Hole strings must be in same layer as boundary string</font color><br><br>
         If wall/ramp shot, input design file, otherwise leave blank.<br>
         Update Survey Allshot - updates the ###_allshots* files</html>"
@@ -337,7 +341,7 @@ set status [ SclFunction "FILE SAVE" {
   }
 }]
 
-if [info exists designFile] {
+if {$designFile ne ""} {
   set status [ SclFunction "TRISOLATION FILE 3DM/DTM ABOVE" {
     frm00714={
       {
