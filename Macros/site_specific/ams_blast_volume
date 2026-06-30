@@ -69,7 +69,6 @@ set form [subst {
     -defaults_key sectionsfile
     -layout BoxLayout Y_AXIS
     -width 45
-    -height 18
 
     GuidoPanel panel_left {
       -layout BoxLayout Y_AXIS
@@ -78,6 +77,13 @@ set form [subst {
         -label "Survey pickup"
         -layout CentreLineLayout
         -border etched true
+
+        GuidoComboBox pitPrefix {
+          -label "Pit"
+          -format none
+          -value_in "bz"
+          -null false
+        }
 
         GuidoFileBrowserField pickupFile {
           -label "Select blast pickup file"
@@ -403,120 +409,165 @@ if {$updateAllshot == "y"} {
     if {$folderCount > 0} {
         set dots [string repeat "../" $folderCount]
         set relativePath "${dots}${matchFolder}/"
-      } else {
+        } else {
         set relativePath "./${matchFolder}/"
-      }
-    
+        }
+
     puts "Relative path: $relativePath"
   }
 
-  set systemTime [clock seconds]
+  # check if allshot files exist and run update, else warn user to update manually
+  if {
+      [file exists "${relativePath}${pitPrefix}_${benchElevation}_allshots.str"] ||
+      [file exists "${relativePath}${pitPrefix}_${benchElevation}_allshots_survey.str"]
+      } {      
+      
+      set systemTime [clock seconds]
 
-  set status [ SclFunction "RECALL ANY FILE" {
-    file="$pickupFile.str"
-    mode="openInNewLayer"
-  }]
+      set form2 [subst {
+          GuidoForm form {
+            -label "Update allshot layers"
+            -default_buttons
+            -defaults_key sectionsfile
+            -layout BoxLayout Y_AXIS
 
-  # create point with shot details
-  SclDigitise "Digitise point for Shot ID" xvar yvar zvar
-  SclGetActiveViewport ViewportHandle
-  $ViewportHandle SclGetActiveLayer SwaHandle
-  $SwaHandle SclCreateString stringhandle $allshotDescString
-  $stringhandle SclCreateSegment segmenthandle 0
-  $segmenthandle SclCreatePoint pointhandle 0
-  $pointhandle SclSetValueByName x $xvar
-  $pointhandle SclSetValueByName y $yvar
-  $pointhandle SclSetValueByName z $zvar
-  $pointhandle SclSetValueByName d1 "$pickupFile"
-  $pointhandle SclSetValueByName d2 "[clock format $systemTime -format %D]"
-  $pointhandle SclSetValueByName d2 "[clock format $systemTime -format %D]"
+            GuidoPanel panel_1 {
+              -label "Update allshot layers"
+              -layout CentreLineLayout
+              -border etched true
 
-  set status [ SclFunction "RECALL ANY FILE" {
-    file="$relativePath${benchElevation}_allshots_survey.str"
-    mode="appendToCurrentLayer"
-  }]
+              GuidoField surveyor {
+                -label "Surveyor"
+                -format none
+              }
 
-  set status [ SclFunction "FILE SAVE" {
-    frmsaveFileAs={
-      {
-        output_file="$relativePath${benchElevation}_allshots_survey"
-        output_type="Surpac String Files"
-        outputExt=".str"
-        Surpac={
-          range=""
-          Purpose=""
-          FileFormat="text"
-          ForceValidation="true"
-          ForceCompatibility="true"
+              GuidoField date {
+                -label "Date"
+                -format none
+                -width 8
+                -default [clock format $systemTime -format "%Y-%m-%d"]
+              }
+            }
+          }
+      }]
+
+      SclCreateGuidoForm allshotDetails $form2 {}
+
+      $allshotDetails SclRun {}
+      if {$_status == "cancel"} {
+          puts "Macro cancelled by user"
+          return
+      }
+      
+      set status [ SclFunction "RECALL ANY FILE" {
+        file="$pickupFile.str"
+        mode="openInNewLayer"
+      }]
+
+      # create point with shot details
+      SclDigitise "Digitise point for Shot ID" xvar yvar zvar
+      SclGetActiveViewport ViewportHandle
+      $ViewportHandle SclGetActiveLayer SwaHandle
+      $SwaHandle SclCreateString stringhandle $allshotDescString
+      $stringhandle SclCreateSegment segmenthandle 0
+      $segmenthandle SclCreatePoint pointhandle 0
+      $pointhandle SclSetValueByName x $xvar
+      $pointhandle SclSetValueByName y $yvar
+      $pointhandle SclSetValueByName z $zvar
+      $pointhandle SclSetValueByName d1 "$pickupFile"
+      $pointhandle SclSetValueByName d2 "$surveyor"
+      $pointhandle SclSetValueByName d3 "$date"
+
+      set status [ SclFunction "RECALL ANY FILE" {
+        file="$relativePath${pitPrefix}_${benchElevation}_allshots_survey.str"
+        mode="appendToCurrentLayer"
+      }]
+
+      set status [ SclFunction "FILE SAVE" {
+        frmsaveFileAs={
+          {
+            output_file="$relativePath${pitPrefix}_${benchElevation}_allshots_survey"
+            output_type="Surpac String Files"
+            outputExt=".str"
+            Surpac={
+              range=""
+              Purpose=""
+              FileFormat="text"
+              ForceValidation="true"
+              ForceCompatibility="true"
+            }
+            saveStyle="N"
+          }
         }
-        saveStyle="N"
-      }
-    }
-    frm00121={
-      {
-        _action=""
-      }
-    }
-  }]
-
-  # undo command to remove the recalled layer (revert back to pickup file)
-  set status [ SclFunction "UNDO" {} ]
-
-  set status [ SclFunction "RECALL ANY FILE" {
-    file="$relativePath${benchElevation}_allshots.str"
-    mode="appendToCurrentLayer"
-  }]
-
-  set status [ SclFunction "STRING DELETE RANGE" {
-    frm00066={
-      {
-        strange="$holeStringsField"
-      }
-    }
-  }]
-
-  set status [ SclFunction "FILE SAVE" {
-    frmsaveFileAs={
-      {
-        output_file="$relativePath${benchElevation}_allshots"
-        output_type="Surpac String Files"
-        outputExt=".str"
-        Surpac={
-          range=""
-          Purpose=""
-          FileFormat="text"
-          ForceValidation="true"
-          ForceCompatibility="true"
+        frm00121={
+          {
+            _action=""
+          }
         }
-        saveStyle="N"
-      }
-    }
-    frm00121={
-      {
-        _action=""
-      }
-    }
-  }]
+      }]
 
-  set status [ SclFunction "FILE SAVE" {
-    frmsaveFileAs={
-      {
-        output_file="$relativePath${benchElevation}_allshots"
-        output_type="Autocad DXF / DWG Files"
-        outputExt=".dxf"
-        AutoCAD={
-          version="Autocad 24 (2010)"
+      # undo command to remove the recalled layer (revert back to pickup file)
+      set status [ SclFunction "UNDO" {} ]
+
+      set status [ SclFunction "RECALL ANY FILE" {
+        file="$relativePath${pitPrefix}_${benchElevation}_allshots.str"
+        mode="appendToCurrentLayer"
+      }]
+
+      set status [ SclFunction "STRING DELETE RANGE" {
+        frm00066={
+          {
+            strange="$holeStringsField"
+          }
         }
-      }
-    }
-    frm00121={
-      {
-        _action=""
-      }
-    }
-  }]
+      }]
 
-  puts "Updated allshot layers"
+      set status [ SclFunction "FILE SAVE" {
+        frmsaveFileAs={
+          {
+            output_file="$relativePath${pitPrefix}_${benchElevation}_allshots"
+            output_type="Surpac String Files"
+            outputExt=".str"
+            Surpac={
+              range=""
+              Purpose=""
+              FileFormat="text"
+              ForceValidation="true"
+              ForceCompatibility="true"
+            }
+            saveStyle="N"
+          }
+        }
+        frm00121={
+          {
+            _action=""
+          }
+        }
+      }]
+
+      set status [ SclFunction "FILE SAVE" {
+        frmsaveFileAs={
+          {
+            output_file="$relativePath${pitPrefix}_${benchElevation}_allshots"
+            output_type="Autocad DXF / DWG Files"
+            outputExt=".dxf"
+            AutoCAD={
+              version="Autocad 24 (2010)"
+            }
+          }
+        }
+        frm00121={
+          {
+            _action=""
+          }
+        }
+      }]
+
+      puts "Updated allshot layers"
+
+  } else {
+      puts "Warning: A file, ${pitPrefix}_${benchElevation}_allshots.str/allshots_survey.str does not exist in ${relativePath}\n Update allshot files manually."
+  }
 }
 
 # Log the volume
