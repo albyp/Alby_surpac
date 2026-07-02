@@ -18,6 +18,7 @@
 # Notes / improvements
 # hide other layers (if STR file is already loaded, we want that hidden)
 # check if boundary string exists
+# update form for allshots to allow selecting the allshot string files
 
 puts "Macro running"
 
@@ -62,6 +63,8 @@ if {[llength $strFiles] == 1} {
     }
 }
 
+set systemTime [clock seconds]
+
 set form [subst {
   GuidoForm form {
     -label "Process blast solid and volume"
@@ -101,21 +104,38 @@ set form [subst {
           -null false
           -default "$rl"
         }
-
-        GuidoField boundaryStringField {
-          -label "Boundary string number"
-          -default "$boundaryString"
-          -null false
-        }
-
-        GuidoField holeStringsField {
-          -label "Hole string numbers (range or semicolon separated)"
-          -default "$strings"
-          -width 20
-        }
       }
 
       GuidoPanel panel_2 {
+        -label "Allshot update"
+        -layout CentreLineLayout
+        -border etched true
+
+        GuidoCheckBox updateAllshot {
+          -label "Update allshot layers"
+          -caption "Yes"
+          -selected_value "y"
+          -unselected_value "n"
+          -default "n"
+        }
+
+        GuidoField surveyor {
+          -dependency {\[\$updateAllshot getCurrentValue] == "y"}
+          -label "Surveyor"
+          -width 8
+          -format none
+        }
+
+        GuidoField date {
+          -dependency {\[\$updateAllshot getCurrentValue] == "y"}
+          -label "Date"
+          -format none
+          -width 8
+          -default [clock format $systemTime -format "%Y-%m-%d"]
+        }
+      }
+
+      GuidoPanel panel_3 {
         -label "Design input"
         -layout CentreLineLayout
         -border etched true
@@ -131,17 +151,21 @@ set form [subst {
         }
       }
 
-      GuidoPanel panel_3 {
+      GuidoPanel panel_4 {
         -label "Settings"
         -layout CentreLineLayout
         -border etched true
 
-        GuidoCheckBox updateAllshot {
-          -label "Update Survey Allshot strings/dxf"
-          -caption "Yes"
-          -selected_value "y"
-          -unselected_value "n"
-          -default "y"
+        GuidoField boundaryStringField {
+          -label "Boundary string number"
+          -default "$boundaryString"
+          -null false
+        }
+
+        GuidoField holeStringsField {
+          -label "Hole string numbers (range or ;)"
+          -default "$strings"
+          -width 20
         }
 
         GuidoCheckBox delTemp {
@@ -156,7 +180,7 @@ set form [subst {
       GuidoLabel label3 {
         -label "<html><font color='red'>Note: Hole strings must be in same layer as boundary string</font color><br><br>
         If wall/ramp shot, input design file, otherwise leave blank.<br>
-        Update Survey Allshot - updates the ###_allshots* files</html>"
+        Update Survey Allshot - updates the *pit_###_allshots* files</html>"
       }
     }
   }
@@ -418,37 +442,40 @@ if {$updateAllshot == "y"} {
 
   # check if allshot files exist and run update, else warn user to update manually
   if {
-      [file exists "${relativePath}${pitPrefix}_${benchElevation}_allshots.str"] ||
-      [file exists "${relativePath}${pitPrefix}_${benchElevation}_allshots_survey.str"]
-      } {      
-      
-      set systemTime [clock seconds]
-
+      ![file exists "${relativePath}${pitPrefix}_${benchElevation}_allshots.str"] ||
+      ![file exists "${relativePath}${pitPrefix}_${benchElevation}_allshots_survey.str"]
+    } {
       set form2 [subst {
-          GuidoForm form {
+        GuidoForm form {
             -label "Update allshot layers"
             -default_buttons
             -defaults_key sectionsfile
             -layout BoxLayout Y_AXIS
 
             GuidoPanel panel_1 {
-              -label "Update allshot layers"
-              -layout CentreLineLayout
-              -border etched true
+                -label "Update allshot layers"
+                -layout CentreLineLayout
+                -border etched true
 
-              GuidoField surveyor {
-                -label "Surveyor"
-                -format none
-              }
+                GuidoFileBrowserField allshotFile {
+                    -label "Select allshot file"
+                    -default "$relativePath"
+                    -format none
+                    -file_mask "*.str"
+                    -width 12
+                    -extension false
+                }
 
-              GuidoField date {
-                -label "Date"
-                -format none
-                -width 8
-                -default [clock format $systemTime -format "%Y-%m-%d"]
-              }
+                GuidoFileBrowserField allshotSurveyFile {
+                    -label "Select allshot survey file"
+                    -default "$relativePath"
+                    -format none
+                    -file_mask "*.str"
+                    -width 12
+                    -extension false
+                }
             }
-          }
+        }
       }]
 
       SclCreateGuidoForm allshotDetails $form2 {}
@@ -458,8 +485,12 @@ if {$updateAllshot == "y"} {
           puts "Macro cancelled by user"
           return
       }
-      
-      set status [ SclFunction "RECALL ANY FILE" {
+  } else {
+    set allshotFile "${relativePath}${pitPrefix}_${benchElevation}_allshots"
+    set allshotSurveyFile "${relativePath}${pitPrefix}_${benchElevation}_allshots_survey"
+  }
+
+  set status [ SclFunction "RECALL ANY FILE" {
         file="$pickupFile.str"
         mode="openInNewLayer"
       }]
@@ -479,14 +510,14 @@ if {$updateAllshot == "y"} {
       $pointhandle SclSetValueByName d3 "$date"
 
       set status [ SclFunction "RECALL ANY FILE" {
-        file="$relativePath${pitPrefix}_${benchElevation}_allshots_survey.str"
+        file="$allshotSurveyFile.str"
         mode="appendToCurrentLayer"
       }]
 
       set status [ SclFunction "FILE SAVE" {
         frmsaveFileAs={
           {
-            output_file="$relativePath${pitPrefix}_${benchElevation}_allshots_survey"
+            output_file="$allshotSurveyFile"
             output_type="Surpac String Files"
             outputExt=".str"
             Surpac={
@@ -510,7 +541,7 @@ if {$updateAllshot == "y"} {
       set status [ SclFunction "UNDO" {} ]
 
       set status [ SclFunction "RECALL ANY FILE" {
-        file="$relativePath${pitPrefix}_${benchElevation}_allshots.str"
+        file="$allshotFile.str"
         mode="appendToCurrentLayer"
       }]
 
@@ -525,7 +556,7 @@ if {$updateAllshot == "y"} {
       set status [ SclFunction "FILE SAVE" {
         frmsaveFileAs={
           {
-            output_file="$relativePath${pitPrefix}_${benchElevation}_allshots"
+            output_file="$allshotFile"
             output_type="Surpac String Files"
             outputExt=".str"
             Surpac={
@@ -548,7 +579,7 @@ if {$updateAllshot == "y"} {
       set status [ SclFunction "FILE SAVE" {
         frmsaveFileAs={
           {
-            output_file="$relativePath${pitPrefix}_${benchElevation}_allshots"
+            output_file="$allshotFile.dxf"
             output_type="Autocad DXF / DWG Files"
             outputExt=".dxf"
             AutoCAD={
@@ -564,10 +595,6 @@ if {$updateAllshot == "y"} {
       }]
 
       puts "Updated allshot layers"
-
-  } else {
-      puts "Warning: A file, ${pitPrefix}_${benchElevation}_allshots.str/allshots_survey.str does not exist in ${relativePath}\n Update allshot files manually."
-  }
 }
 
 # Log the volume
