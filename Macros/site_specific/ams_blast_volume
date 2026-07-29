@@ -46,23 +46,6 @@ set pit ""
 set rl ""
 set shot ""
 
-set strFiles [glob -nocomplain {*.str}]
-
-if {[llength $strFiles] == 1} {
-    puts "Found 1 string file."
-
-    set cleanName [file rootname [lindex $strFiles 0]]
-    set details [split $cleanName _]
-    
-    if {[llength $details] == 3} {
-        lassign $details pit rl shot
-        
-        puts [format "Variables set -> Pit: %s, RL: %s, Shot: %s" $pit $rl $shot]
-    } else {
-        puts "Warning: File does not have exactly 3 parts."
-    }
-}
-
 set systemTime [clock seconds]
 
 set form [subst {
@@ -92,7 +75,7 @@ set form [subst {
           -label "Select blast pickup file"
           -format none
           -translate none
-          -default "[lindex $strFiles 0]"
+          -default ""
           -file_mask "*.str"
           -display_length 20
           -extension false
@@ -156,13 +139,13 @@ set form [subst {
         -layout CentreLineLayout
         -border etched true
 
-        GuidoField boundaryStringField {
+        GuidoField boundaryString {
           -label "Boundary string number"
           -default "$boundaryString"
           -null false
         }
 
-        GuidoField holeStringsField {
+        GuidoField holeStringRange {
           -label "Hole string numbers (range or ;)"
           -default "$strings"
           -width 20
@@ -194,8 +177,18 @@ if {$_status == "cancel"} {
     return
 }
 
+set cleanPickup [file rootname $pickupFile]
+puts $cleanPickup
+set details [split $cleanPickup _]
+if {[llength $details] == 3} {
+  lassign $details pit rl shot
+} elseif {[llength $details] == 4} {
+  lassign $details pu pit rl shot
+}
+# make else for error and later create form for user to input pit, rl, shot if not in filename
+
 set sfx    _vol
-set output $pickupFile$sfx
+set output ${pitPrefix}_${benchElevation}_${shot}${sfx}
 
 # Create DTM from pickup STR
 set status [ SclFunction "CREATE DTM" {
@@ -205,31 +198,28 @@ set status [ SclFunction "CREATE DTM" {
       object_num="1"
       obj_name=""
       inputExt="str"
-      output_fname="$output"
+      output_fname="top_temp"
       plane="plan"
       check_distance="0.0050"
       break="Y"
       anyspots="Y"
-      spotrng="$holeStringsField"
+      spotrng="$holeStringRange"
       brktest="N"
       interpolate_new_points="N"
       apply_boundary="Y"
       bdyloc="$pickupFile"
-      bdystr="$boundaryStringField"
+      bdystr="$boundaryString"
       inout="I"
     }
   }
 }]
 
-set status [ SclFunction "RECALL ANY FILE" {
-  file="$output.dtm"
-  mode="openInNewLayer"
-}]
-
-set status [ SclFunction "GRAPHICS LAYER MATHS" {
-  frm00702={
+set status [ SclFunction "STR MATHS" {
+  frm00700={
     {
-      strrange="Y"
+      file_loc="$pickupFile"
+      file_id=""
+      result_loc="bot_temp"
       main=table { str_range constraint field expr } {
         { "" "" "z" "$benchElevation" }
         { "" "" "" "" }
@@ -247,129 +237,58 @@ set status [ SclFunction "GRAPHICS LAYER MATHS" {
 }]
 
 set status [ SclFunction "RECALL ANY FILE" {
+  file="bot_temp.str"
+  mode="none"
+}]
+
+set status [ SclFunction "CREATE DTM" {
+  frm00126={
+    {
+      location="bot_temp"
+      object_num="1"
+      obj_name=""
+      inputExt="str"
+      output_fname=""
+      plane="plan"
+      check_distance="0.0050"
+      break="Y"
+      anyspots="Y"
+      spotrng="$holeStringRange"
+      brktest="N"
+      interpolate_new_points="N"
+      apply_boundary="Y"
+      bdyloc="bot_temp"
+      bdystr="$boundaryString"
+      inout="I"
+    }
+  }
+}]
+
+set status [ SclFunction "TRISOLATION FILE DTM/DTM INTERSECT" {
+  frm00713={
+    {
+      location1="top_temp.dtm"
+      id1=""
+      object1="1"
+      trisol1="1"
+      retain_other_trisolations="N"
+      location2="bot_temp.dtm"
+      id2=""
+      object2="1"
+      trisol2="1"
+      result_location="$output.dtm"
+      result_id=""
+      result_object="1"
+      contact_string="0"
+    }
+  }
+}]
+
+set status [ SclFunction "RECALL ANY FILE" {
   file="$output.dtm"
-  mode="appendToCurrentLayer"
+  mode="none"
 }]
 
-set status [ SclFunction "SECTION" {} ]
-
-set status [ SclFunction "EDGES ON" {} ]
-
-set top [SclSelectPoint pnt "Select top DTM" layer str_no seg_no pnt_no x1 y1 z1 desc]
-
-set bot [SclSelectPoint pnt "Select bottom DTM" layer str_no seg_no pnt_no x2 y2 z2 desc]
-
-set status [ SclFunction "TRIANGULATE AUTOMATIC" {
-  frm00459={
-    {
-      iobj="1"
-      itrisol="1"
-    }
-  }
-  select_point=table { winx winy objectx objecty objectz snap_projection } {
-    { "0.500" "0.000" "$x1" "$y1" "$z1" "off" }
-    { "0.500" "0.000" "$x2" "$y2" "$z2" "off" }
-  }
-}]
-
-set status [ SclFunction "PLAN" {} ]
-
-set status [ SclFunction "ERASE OBJECTS" {
-  frm00089={
-    {
-      range1="1"
-      range2="1"
-      range3=""
-      textalignment="<"
-      position="All points"
-      layer_name="$output.dtm"
-      display_object_number=""
-      display_trisolation_number=""
-    }
-  }
-}]
-
-set status [ SclFunction "EDGES OFF" {} ]
-
-set point [SclSelectPoint pnt "Select DTM" layer str_no seg_no pnt_no x y z desc]
-
-set status [ SclFunction "TRISOLATION RENUMBER" {
-  select_triangle={
-    {
-      winx="0.000"
-      winy="0.000"
-      objectx="$x"
-      objecty="$y"
-      objectz="$z"
-    }
-  }
-  frm00453={
-    {
-      newobj="1"
-      newtrisol="1"
-    }
-  }
-}]
-
-set status [ SclFunction "DRAW OBJECTS" {
-  frm00089={
-    {
-      range1=""
-      range2=""
-      range3=""
-      ifld_num="d1"
-      textalignment="<"
-      layer_name="$output.dtm"
-      display_object_number="N"
-    }
-  }
-}]
-
-set status [ SclFunction "NEIGHBOURS AND VALIDATE OBJECT" {
-  frmvalidateObject={
-    {
-      report_file=""
-      obj_range=""
-      trisol_range=""
-      fix_problems="N"
-      report_intersection_duplication="N"
-      set_as_solid="Y"
-      deleteSmallTrisol="N"
-      deleteSmallTriangles="N"
-      displayTriangleDir="N"
-      colours=table { colour_label colour_field } {
-        { "Holes" "GREEN" }
-        { "Intersecting triangles" "CYAN" }
-        { "Invalid edges only" "ORANGE" }
-        { "Open edges" "MAGENTA" }
-        { "Reversed triangles" "RED" }
-      }
-    }
-  }
-}]
-
-set status [ SclFunction "FILE SAVE" {
-  frmsaveFileAs={
-    {
-      output_file="$output"
-      output_type="Surpac DTM Files"
-      outputExt=".dtm"
-      Surpac={
-        range=""
-        Purpose=""
-        FileFormat="text"
-        ForceCompatibility="true"
-        ForceValidation="true"
-      }
-      saveStyle="N"
-    }
-  }
-  frmSaveMultipleFiles={
-    {
-      _action="apply"
-    }
-  }
-}]
 
 if {$designFile ne ""} {
   set status [ SclFunction "TRISOLATION FILE 3DM/DTM ABOVE" {
@@ -505,7 +424,7 @@ if {$updateAllshot == "y"} {
       $pointhandle SclSetValueByName x $xvar
       $pointhandle SclSetValueByName y $yvar
       $pointhandle SclSetValueByName z $zvar
-      $pointhandle SclSetValueByName d1 "$pickupFile"
+      $pointhandle SclSetValueByName d1 "${pitPrefix}_${benchElevation}_${shot}"
       $pointhandle SclSetValueByName d2 "$surveyor"
       $pointhandle SclSetValueByName d3 "$date"
 
@@ -548,7 +467,7 @@ if {$updateAllshot == "y"} {
       set status [ SclFunction "STRING DELETE RANGE" {
         frm00066={
           {
-            strange="$holeStringsField"
+            strange="$holeStringRange"
           }
         }
       }]
@@ -610,7 +529,7 @@ if {$delTemp == "y"} {
   set status [ SclFunction "EXECUTE OS COMMAND" {
     frm00462={
       {
-        os_cmd="del *.log"
+        os_cmd="del *.log; del top_temp.*; del bot_temp.*"
       }
     }
   }]
