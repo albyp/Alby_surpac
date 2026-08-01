@@ -18,7 +18,7 @@
 # Notes / improvements
 # hide other layers (if STR file is already loaded, we want that hidden)
 # check if boundary string exists
-# update form for allshots to allow selecting the allshot string files
+# remove the extra layers (i.e. bot_temp)
 
 puts "Macro running"
 
