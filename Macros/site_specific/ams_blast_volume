@@ -18,7 +18,8 @@
 # Notes / improvements
 # hide other layers (if STR file is already loaded, we want that hidden)
 # check if boundary string exists
-# remove the extra layers (i.e. bot_temp)
+# update form for allshots to allow selecting the allshot string files
+# delete bot_temp.dtm layer after use
 
 puts "Macro running"
 
@@ -42,9 +43,23 @@ foreach {key val} [array get holeStrings] {
 
 set strings [join $strings ";"]
 
+set file ""
 set pit ""
 set rl ""
 set shot ""
+
+# auto find string file if only 1 exists
+set strFiles [glob -nocomplain {*.str}]
+if {[llength $strFiles] == 1} {
+  set cleanName [file rootname [lindex $strFiles 0]]
+  set details [split $cleanName _]
+  set file $cleanName
+  if {[llength $details] == 3} {
+    lassign $details pit rl shot
+  } elseif {[llength $details] == 4} {
+    lassign $details _ pit rl shot
+  }
+}
 
 set systemTime [clock seconds]
 
@@ -75,7 +90,7 @@ set form [subst {
           -label "Select blast pickup file"
           -format none
           -translate none
-          -default ""
+          -default "$file"
           -file_mask "*.str"
           -display_length 20
           -extension false
@@ -183,7 +198,7 @@ set details [split $cleanPickup _]
 if {[llength $details] == 3} {
   lassign $details pit rl shot
 } elseif {[llength $details] == 4} {
-  lassign $details pu pit rl shot
+  lassign $details _ pit rl shot
 }
 # make else for error and later create form for user to input pit, rl, shot if not in filename
 
