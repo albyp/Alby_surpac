@@ -192,6 +192,8 @@ if {$_status == "cancel"} {
     return
 }
 
+set pitPrefix [string toupper $pitPrefix]
+
 set cleanPickup [file rootname $pickupFile]
 puts $cleanPickup
 set details [split $cleanPickup _]
@@ -200,7 +202,8 @@ if {[llength $details] == 3} {
 } elseif {[llength $details] == 4} {
   lassign $details _ pit rl shot
 }
-# make else for error and later create form for user to input pit, rl, shot if not in filename
+
+# TODO make else for error and later create form for user to input pit, rl, shot if not in filename
 
 set sfx    _vol
 set output ${pitPrefix}_${benchElevation}_${shot}${sfx}
@@ -351,11 +354,15 @@ set status [ SclFunction "OBJECT REPORT" {
   }
 }]
 
+set status [ SclFunction "DELETE LAYER" {
+  layer="bot_temp.str"
+}]
+
 if {$updateAllshot == "y"} {
   # get folder path, split to relativePath used in bench directory (###rl) to load allshot layers
   set path [pwd]
   # regexp 3 digits followed by "rl" or "RL"
-  if {[regexp -indices {\d{3}[rRlL]{2}} $path match_range]} {
+  if {[regexp -indices {\d+[rRlL]{2}} $path match_range]} {
     set start [lindex $match_range 0]
     set end [lindex $match_range 1]
     set matchFolder [string range $path $start $end]
@@ -372,6 +379,9 @@ if {$updateAllshot == "y"} {
         }
 
     puts "Relative path: $relativePath"
+  } else {
+    puts "No match found for 3 digits followed by 'rl' in the path."
+    set relativePath ""
   }
 
   # check if allshot files exist and run update, else warn user to update manually
