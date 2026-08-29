@@ -192,6 +192,112 @@ if {$_status == "cancel"} {
     return
 }
 
+# Pole of inaccessibility helpers for digitising shot description point
+# inside the blast boundary without manual digitise
+proc PointInPolygon {px py xs ys} {
+    set n [llength $xs]
+    set inside 0
+    set j [expr {$n - 1}]
+    for {set i 0} {$i < $n} {incr i} {
+        set xi [lindex $xs $i]
+        set yi [lindex $ys $i]
+        set xj [lindex $xs $j]
+        set yj [lindex $ys $j]
+        if { (($yi > $py) != ($yj > $py)) &&
+             ($px < ($xj - $xi) * ($py - $yi) / ($yj - $yi) + $xi) } {
+            set inside [expr {!$inside}]
+        }
+        set j $i
+    }
+    return $inside
+}
+
+proc PointSegDist {px py x1 y1 x2 y2} {
+    set dx [expr {$x2 - $x1}]
+    set dy [expr {$y2 - $y1}]
+    if {$dx == 0 && $dy == 0} {
+        return [expr {hypot($px - $x1, $py - $y1)}]
+    }
+    set t [expr {(($px - $x1) * $dx + ($py - $y1) * $dy) / ($dx*$dx + $dy*$dy)}]
+    if {$t < 0} {set t 0}
+    if {$t > 1} {set t 1}
+    set cx [expr {$x1 + $t * $dx}]
+    set cy [expr {$y1 + $t * $dy}]
+    return [expr {hypot($px - $cx, $py - $cy)}]
+}
+
+proc DistToPolygonBoundary {px py xs ys} {
+    set n [llength $xs]
+    set minD 1e18
+    set j [expr {$n - 1}]
+    for {set i 0} {$i < $n} {incr i} {
+        set d [PointSegDist $px $py \
+                 [lindex $xs $j] [lindex $ys $j] \
+                 [lindex $xs $i] [lindex $ys $i]]
+        if {$d < $minD} {set minD $d}
+        set j $i
+    }
+    return $minD
+}
+
+proc PoleOfInaccessibility {xs ys {gridDivisions 20} {refinePasses 4}} {
+    set xmin [lindex $xs 0]; set xmax $xmin
+    set ymin [lindex $ys 0]; set ymax $ymin
+    foreach x $xs {
+        if {$x < $xmin} {set xmin $x}
+        if {$x > $xmax} {set xmax $x}
+    }
+    foreach y $ys {
+        if {$y < $ymin} {set ymin $y}
+        if {$y > $ymax} {set ymax $y}
+    }
+
+    set cx [expr {($xmin + $xmax) / 2.0}]
+    set cy [expr {($ymin + $ymax) / 2.0}]
+    set halfW [expr {($xmax - $xmin) / 2.0}]
+    set halfH [expr {($ymax - $ymin) / 2.0}]
+
+    if {$halfW <= 0} {set halfW 1.0}
+    if {$halfH <= 0} {set halfH 1.0}
+
+    set bestX $cx
+    set bestY $cy
+    set bestD -1
+
+    for {set pass 0} {$pass < $refinePasses} {incr pass} {
+        set stepX [expr {(2.0 * $halfW) / $gridDivisions}]
+        set stepY [expr {(2.0 * $halfH) / $gridDivisions}]
+        set foundAny 0
+
+        for {set i 0} {$i <= $gridDivisions} {incr i} {
+            set px [expr {$cx - $halfW + $i * $stepX}]
+            for {set j 0} {$j <= $gridDivisions} {incr j} {
+                set py [expr {$cy - $halfH + $j * $stepY}]
+                if {[PointInPolygon $px $py $xs $ys]} {
+                    set d [DistToPolygonBoundary $px $py $xs $ys]
+                    if {$d > $bestD} {
+                        set bestD $d
+                        set bestX $px
+                        set bestY $py
+                        set foundAny 1
+                    }
+                }
+            }
+        }
+
+        if {!$foundAny && $bestD < 0} {
+            return [list [lindex $xs 0] [lindex $ys 0]]
+        }
+
+        set cx $bestX
+        set cy $bestY
+        set halfW [expr {$halfW / 3.0}]
+        set halfH [expr {$halfH / 3.0}]
+    }
+
+    return [list $bestX $bestY]
+}
+
 set pitPrefix [string toupper $pitPrefix]
 
 set cleanPickup [file rootname $pickupFile]
@@ -439,10 +545,53 @@ if {$updateAllshot == "y"} {
         mode="openInNewLayer"
       }]
 
-      # create point with shot details
-      SclDigitise "Digitise point for Shot ID" xvar yvar zvar
+      # create the shot annotation point automatically using
+      # pole-of-inaccessibility inside the polygon
+      set xvar ""
+      set yvar ""
+      set zvar ""
+      set boundaryXs [list]
+      set boundaryYs [list]
+      set boundaryZs [list]
+      set boundaryFound 0
+
       SclGetActiveViewport ViewportHandle
       $ViewportHandle SclGetActiveLayer SwaHandle
+      $SwaHandle SclGetStrings StringsHandle
+      $StringsHandle SclIterateFirst StringsIterator
+      while {[$StringsIterator SclIterateNext StringHandle] == $SCL_TRUE} {
+        set strNum [$StringHandle SclGetId]
+        if {$strNum != $boundaryString} {
+          continue
+        }
+        set boundaryFound 1
+        $StringHandle SclIterateFirst SegmentIterator
+        while {[$SegmentIterator SclIterateNext SegmentHandle] == $SCL_TRUE} {
+          $SegmentHandle SclIterateFirst PointIterator
+          while {[$PointIterator SclIterateNext PointHandle] == $SCL_TRUE} {
+            set x [$PointHandle SclGetValueByName x]
+            set y [$PointHandle SclGetValueByName y]
+            set z [$PointHandle SclGetValueByName z]
+            lappend boundaryXs $x
+            lappend boundaryYs $y
+            lappend boundaryZs $z
+          }
+        }
+      }
+
+      if {$boundaryFound && [llength $boundaryXs] >= 3} {
+        set pole [PoleOfInaccessibility $boundaryXs $boundaryYs]
+        set xvar [lindex $pole 0]
+        set yvar [lindex $pole 1]
+        if {[llength $boundaryZs] > 0} {
+          set zvar [lindex $boundaryZs end]
+        } else {
+          set zvar $benchElevation
+        }
+      } else {
+        SclDigitise "Digitise point for Shot ID" xvar yvar zvar
+      }
+
       $SwaHandle SclCreateString stringhandle $allshotDescString
       $stringhandle SclCreateSegment segmenthandle 0
       $segmenthandle SclCreatePoint pointhandle 0
