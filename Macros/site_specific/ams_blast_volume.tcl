@@ -697,7 +697,8 @@ close $f
 set trimmed [string trim $content]
 set contentList [split $trimmed " "]
 set lastElement [lindex $contentList end]
-puts "${pickupFile} - Volume: ${lastElement}"
+set formatVolume [regsub -all {\d(?=(\d{3})+(?!\d))} $lastElement {\0,}]
+puts "${pickupFile} - Volume: ${formatVolume} m3"
 
 if {$delTemp == "y"} {  
   set status [ SclFunction "EXECUTE OS COMMAND" {
