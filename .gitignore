@@ -1,2 +1,5 @@
 # Specific logicals
 system defaults/logicals/*/
+
+# Surpac manuals
+Documentation/SurpacManuals/*/
