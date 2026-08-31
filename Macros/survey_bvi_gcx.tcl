@@ -148,8 +148,9 @@ foreach key [lsort -dictionary [dict keys $pairedBvis]] {
   set postZ   [lindex $postRec 3]
   set postDesc [lindex $postRec 4]
 
-  puts $out "$outputStr, $preY, $preX, $preZ, $preDesc"
-  puts $out "$outputStr, $postY, $postX, $postZ, $postDesc"
+  # write segments to output file (1 = pre, 2 = post)
+  puts $out "$outputStr, $preY, $preX, $preZ, 1"
+  puts $out "$outputStr, $postY, $postX, $postZ, 2"
   puts $out "0, 0, 0, 0"
 }
 
