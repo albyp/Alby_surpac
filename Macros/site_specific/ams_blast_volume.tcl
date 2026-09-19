@@ -23,6 +23,13 @@
 
 puts "Macro running"
 
+# Check Surpac version
+regexp {\d+[\d.]+} [SclVersionId] ver
+set fallback [package vcompare $ver 7.2]
+if {$fallback == -1} {
+  puts "Macro running legacy fallback for Surpac version < 7.2"
+}
+
 # Define hole strings and boundary string numbers - update as required for site
 array set holeStrings {
     presplit 103
@@ -388,10 +395,16 @@ set status [ SclFunction "CREATE DTM" {
   }
 }]
 
+# Fallback for Surpac version < 7.2, use pickupFile.dtm instead of top_temp.dtm
+if {$fallback == -1} {
+  set l1 "$pickupFile.dtm"
+} else {
+  set l1 "top_temp.dtm"
+}
 set status [ SclFunction "TRISOLATION FILE DTM/DTM INTERSECT" {
   frm00713={
     {
-      location1="top_temp.dtm"
+      location1=$l1
       id1=""
       object1="1"
       trisol1="1"
@@ -412,7 +425,6 @@ set status [ SclFunction "RECALL ANY FILE" {
   file="$output.dtm"
   mode="none"
 }]
-
 
 if {$designFile ne ""} {
   set status [ SclFunction "TRISOLATION FILE 3DM/DTM ABOVE" {
